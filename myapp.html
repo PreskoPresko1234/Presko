@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!--
+ @license
+ Copyright 2019 Google LLC. All Rights Reserved.
+ SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+  <head>
+    <title>Geolocation</title>
+    <style>
+      /* Always set the map height explicitly to define the size of the div element that contains the map. */
+      #map {
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      let map, infoWindow;
+      let coordinates = []; // Array to store the coordinates
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: -34.397, lng: 150.644 }, // Set an initial center
+          zoom: 17, // Adjust the zoom level as needed
+        });
+        infoWindow = new google.maps.InfoWindow();
+
+        if (navigator.permissions) {
+          navigator.permissions
+            .query({ name: "geolocation" })
+            .then((permissionStatus) => {
+              if (permissionStatus.state === "granted") {
+                getLocation();
+              } else if (permissionStatus.state === "prompt") {
+                navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                    getLocation();
+                  },
+                  () => {
+                    handleLocationError(true, infoWindow, map.getCenter());
+                  }
+                );
+              }
+            });
+        } else {
+          getLocation();
+        }
+      }
+
+      function getLocation() {
+        if (navigator.geolocation) {
+          navigator.geolocation.watchPosition(
+            (position) => {
+              const pos = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+              };
+
+              infoWindow.setPosition(pos);
+              infoWindow.setContent("Location found.");
+              infoWindow.open(map);
+              map.setCenter(pos);
+
+              if (coordinates.length === 0) {
+                coordinates.push(pos); // Add the first point to the coordinates array
+                drawPathAndMarkers(); // Draw the path and markers
+              } else {
+                const previousPoint = coordinates[coordinates.length - 1];
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                  new google.maps.LatLng(previousPoint.lat, previousPoint.lng),
+                  new google.maps.LatLng(pos.lat, pos.lng)
+                );
+                if (distance >= 3) {
+                  coordinates.push(pos); // Add the new point to the coordinates array
+                  drawPathAndMarkers(); // Draw the path and markers
+                }
+              }
+            },
+            () => {
+              handleLocationError(true, infoWindow, map.getCenter());
+            }
+          );
+        } else {
+          // Browser doesn't support Geolocation
+          handleLocationError(false, infoWindow, map.getCenter());
+        }
+      }
+
+      // Function to draw the path and markers
+      function drawPathAndMarkers() {
+        // Draw the road
+        const path = new google.maps.Polyline({
+          path: coordinates,
+          geodesic: true,
+          strokeColor: "#FF0000",
+          strokeOpacity: 1.0,
+          strokeWeight: 2,
+        });
+
+        path.setMap(map);
+
+        // Add pinpoints
+        for (let i = 0; i < coordinates.length; i++) {
+          new google.maps.Marker({
+            position: coordinates[i],
+            map: map,
+            title: `Pinpoint ${i + 1}`,
+          });
+        }
+      }
+
+      function handleLocationError(browserHasGeolocation, infoWindow, pos) {
+        infoWindow.setPosition(pos);
+        infoWindow.setContent(
+          browserHasGeolocation
+            ? "Error: The Geolocation service failed."
+            : "Error: Your browser doesn't support geolocation."
+        );
+        infoWindow.open(map);
+      }
+
+      window.initMap = initMap;
+    </script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCKnvXkXHGG8k_l-IWM6jk2NcITDMbsmJE&callback=initMap&libraries=geometry"
+      async
+      defer
+    ></script>
+  </body>
+</html>
